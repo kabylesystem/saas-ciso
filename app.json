@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "Barber WhatsApp App",
+    "slug": "barber-whatsapp-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.barber.app"
+    },
+    "android": {
+      "package": "com.barber.app"
+    }
+  }
+}
