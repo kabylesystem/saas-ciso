@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  ScrollView,
 } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { spacing, borderRadius } from '../theme/spacing';
@@ -56,12 +55,7 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
 
   return (
     <SwipeableModal visible={visible} onClose={onClose}>
-      <ScrollView 
-        style={styles.scrollView}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-        bounces={false}
-      >
+      <View style={styles.content}>
         {/* Client header */}
         <View style={styles.header}>
           <View style={[styles.avatar, { borderColor: colors.border, borderWidth: 1 }]}>
@@ -170,19 +164,15 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
             Marquer No-show
           </Text>
         </TouchableOpacity>
-      </ScrollView>
+      </View>
     </SwipeableModal>
   );
 };
 
 const styles = StyleSheet.create({
-  scrollView: {
-    flex: 1,
-  },
   content: {
     padding: spacing.lg,
     paddingTop: 0,
-    paddingBottom: spacing.xxl,
   },
   header: {
     flexDirection: 'row',
@@ -296,3 +286,6 @@ const styles = StyleSheet.create({
     ...typography.body,
   },
 });
+
+
+

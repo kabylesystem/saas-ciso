@@ -7,6 +7,7 @@ import {
   Animated,
   Dimensions,
   PanResponder,
+  ScrollView,
 } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { spacing, borderRadius } from '../theme/spacing';
@@ -19,7 +20,7 @@ interface SwipeableModalProps {
 }
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-const SWIPE_THRESHOLD = 100;
+const SWIPE_THRESHOLD = 80;
 
 export const SwipeableModal: React.FC<SwipeableModalProps> = ({
   visible,
@@ -30,13 +31,20 @@ export const SwipeableModal: React.FC<SwipeableModalProps> = ({
   const { colors } = useTheme();
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scrollOffset = useRef(0);
+  const isScrolling = useRef(false);
 
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
+      onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (_, gestureState) => {
-        // Only respond to downward gestures
-        return gestureState.dy > 10;
+        // Allow swipe down if at top of scroll or scrolling down
+        const isSwipingDown = gestureState.dy > 10;
+        const isAtTop = scrollOffset.current <= 0;
+        return isSwipingDown && (isAtTop || !isScrolling.current);
+      },
+      onPanResponderGrant: () => {
+        // Started gesture
       },
       onPanResponderMove: (_, gestureState) => {
         if (gestureState.dy > 0) {
@@ -45,10 +53,8 @@ export const SwipeableModal: React.FC<SwipeableModalProps> = ({
       },
       onPanResponderRelease: (_, gestureState) => {
         if (gestureState.dy > SWIPE_THRESHOLD || gestureState.vy > 0.5) {
-          // Close modal
           closeModal();
         } else {
-          // Snap back
           Animated.spring(translateY, {
             toValue: 0,
             friction: 8,
@@ -79,6 +85,7 @@ export const SwipeableModal: React.FC<SwipeableModalProps> = ({
   useEffect(() => {
     if (visible) {
       translateY.setValue(SCREEN_HEIGHT);
+      scrollOffset.current = 0;
       Animated.parallel([
         Animated.spring(translateY, {
           toValue: 0,
@@ -104,6 +111,7 @@ export const SwipeableModal: React.FC<SwipeableModalProps> = ({
       </Animated.View>
 
       <Animated.View
+        {...panResponder.panHandlers}
         style={[
           styles.container,
           {
@@ -113,12 +121,29 @@ export const SwipeableModal: React.FC<SwipeableModalProps> = ({
           },
         ]}
       >
-        {/* Swipe handle area */}
-        <View {...panResponder.panHandlers} style={styles.handleArea}>
+        {/* Swipe handle */}
+        <View style={styles.handleArea}>
           <View style={[styles.handle, { backgroundColor: colors.border }]} />
         </View>
 
-        {children}
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+          onScroll={(e) => {
+            scrollOffset.current = e.nativeEvent.contentOffset.y;
+          }}
+          onScrollBeginDrag={() => {
+            isScrolling.current = true;
+          }}
+          onScrollEndDrag={() => {
+            isScrolling.current = false;
+          }}
+          scrollEventThrottle={16}
+        >
+          {children}
+        </ScrollView>
       </Animated.View>
     </Modal>
   );
@@ -149,5 +174,10 @@ const styles = StyleSheet.create({
     height: 4,
     borderRadius: 2,
   },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: spacing.xl,
+  },
 });
-

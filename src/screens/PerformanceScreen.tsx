@@ -1,86 +1,41 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, Animated, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, SafeAreaView, Animated, ScrollView } from 'react-native';
 import { PerformanceMetrics } from '../types';
 import { useTheme } from '../context/ThemeContext';
 import { spacing, borderRadius } from '../theme/spacing';
 import { typography } from '../theme/typography';
 import { ThemeToggle } from '../components/ThemeToggle';
-import { GlowCard } from '../components/GlowCard';
 import { AnimatedNumber } from '../components/AnimatedNumber';
-import { achievements } from '../data/mockData';
 
 interface PerformanceScreenProps {
   metrics: PerformanceMetrics;
 }
 
 export const PerformanceScreen: React.FC<PerformanceScreenProps> = ({ metrics }) => {
-  const { colors, mode } = useTheme();
-  const [showAchievements, setShowAchievements] = useState(false);
+  const { colors } = useTheme();
 
-  const revenueAnim = useRef(new Animated.Value(0)).current;
-  const progressAnim = useRef(new Animated.Value(0)).current;
-  const badgesAnim = useRef(new Animated.Value(0)).current;
-  const statsAnim = useRef(new Animated.Value(0)).current;
-  const breakdownAnim = useRef(new Animated.Value(0)).current;
-  const achievementsListAnim = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim1 = useRef(new Animated.Value(0)).current;
+  const slideAnim2 = useRef(new Animated.Value(0)).current;
+  const slideAnim3 = useRef(new Animated.Value(0)).current;
 
   const dailyGoal = 500;
   const progressPercent = Math.min((metrics.totalRevenue / dailyGoal) * 100, 100);
-  const streak = 7;
-  const level = Math.floor(metrics.totalRevenue / 200) + 1;
-  const xpCurrent = metrics.totalRevenue % 200;
-  const xpNeeded = 200;
-
-  const unlockedCount = achievements.filter(a => a.unlocked).length;
+  const avgTicket = metrics.completedToday > 0 
+    ? Math.round(metrics.totalRevenue / metrics.completedToday) 
+    : 0;
+  const conversionRate = metrics.completedToday > 0 
+    ? Math.round((metrics.completedToday / (metrics.completedToday + metrics.noShowsToday)) * 100)
+    : 0;
 
   useEffect(() => {
-    Animated.stagger(150, [
-      Animated.spring(revenueAnim, {
-        toValue: 1,
-        useNativeDriver: true,
-        tension: 50,
-        friction: 8,
-      }),
-      Animated.spring(badgesAnim, {
-        toValue: 1,
-        useNativeDriver: true,
-        tension: 50,
-        friction: 8,
-      }),
-      Animated.spring(statsAnim, {
-        toValue: 1,
-        useNativeDriver: true,
-        tension: 50,
-        friction: 8,
-      }),
-      Animated.spring(breakdownAnim, {
-        toValue: 1,
-        useNativeDriver: true,
-        tension: 50,
-        friction: 8,
-      }),
+    Animated.stagger(100, [
+      Animated.spring(fadeAnim, { toValue: 1, useNativeDriver: true, tension: 50, friction: 8 }),
+      Animated.spring(slideAnim1, { toValue: 1, useNativeDriver: true, tension: 50, friction: 8 }),
+      Animated.spring(slideAnim2, { toValue: 1, useNativeDriver: true, tension: 50, friction: 8 }),
+      Animated.spring(slideAnim3, { toValue: 1, useNativeDriver: true, tension: 50, friction: 8 }),
     ]).start();
-
-    Animated.timing(progressAnim, {
-      toValue: progressPercent,
-      duration: 1200,
-      delay: 300,
-      useNativeDriver: false,
-    }).start();
   }, []);
-
-  useEffect(() => {
-    if (showAchievements) {
-      Animated.spring(achievementsListAnim, {
-        toValue: 1,
-        useNativeDriver: true,
-        tension: 50,
-        friction: 8,
-      }).start();
-    } else {
-      achievementsListAnim.setValue(0);
-    }
-  }, [showAchievements]);
 
   const getCurrentDate = () => {
     const date = new Date();
@@ -95,161 +50,141 @@ export const PerformanceScreen: React.FC<PerformanceScreenProps> = ({ metrics })
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
         <View>
-          <Text style={[styles.title, { color: colors.text }]}>Performance</Text>
+          <Text style={[styles.title, { color: colors.text }]}>Dashboard</Text>
           <Text style={[styles.date, { color: colors.textSecondary }]}>
             {getCurrentDate()}
           </Text>
         </View>
         <ThemeToggle />
-      </View>
+      </Animated.View>
 
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Main revenue card with glow */}
-        <GlowCard style={styles.revenueWrapper} intensity="medium">
-          <View style={styles.revenueContent}>
-            <Text style={[styles.revenueLabel, { color: colors.textSecondary }]}>
-              REVENU DU JOUR
-            </Text>
-            <AnimatedNumber 
-              value={metrics.totalRevenue} 
-              suffix="€"
-              style={[styles.revenueValue, { color: colors.text }]}
-            />
-
-            {/* Goal progress */}
-            <View style={styles.goalSection}>
-              <View style={styles.goalRow}>
-                <Text style={[styles.goalText, { color: colors.textSecondary }]}>
-                  Objectif {dailyGoal}€
-                </Text>
-                <Text style={[styles.goalPercent, { color: colors.text }]}>
-                  {Math.round(progressPercent)}%
-                </Text>
-              </View>
-              <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
-                <Animated.View
-                  style={[
-                    styles.progressFill,
-                    {
-                      backgroundColor: progressPercent >= 100 ? colors.success : colors.text,
-                      width: progressAnim.interpolate({
-                        inputRange: [0, 100],
-                        outputRange: ['0%', '100%'],
-                      }),
-                    },
-                  ]}
-                />
-              </View>
-              {progressPercent >= 100 && (
-                <Text style={[styles.goalReached, { color: colors.success }]}>
-                  Objectif atteint
-                </Text>
-              )}
-            </View>
-          </View>
-        </GlowCard>
-
-        {/* Level & Streak badges */}
+        {/* Main KPI - Revenue */}
         <Animated.View 
           style={[
-            styles.badgesSection,
+            styles.mainCard,
+            { backgroundColor: colors.cardBackground },
             {
-              opacity: badgesAnim,
-              transform: [{
-                translateY: badgesAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [20, 0],
-                }),
-              }],
+              opacity: slideAnim1,
+              transform: [{ translateY: slideAnim1.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }],
             },
           ]}
         >
-          <View style={[styles.levelBadge, { borderColor: colors.text }]}>
-            <AnimatedNumber 
-              value={level} 
-              duration={800}
-              style={[styles.levelNumber, { color: colors.text }]}
-            />
-            <Text style={[styles.levelLabel, { color: colors.textSecondary }]}>NIVEAU</Text>
-            <View style={[styles.xpBar, { backgroundColor: colors.border }]}>
-              <View
+          <View style={styles.mainCardHeader}>
+            <Text style={[styles.kpiLabel, { color: colors.textSecondary }]}>
+              CHIFFRE D'AFFAIRES
+            </Text>
+            <View style={[
+              styles.trendBadge, 
+              { backgroundColor: colors.success + '20' }
+            ]}>
+              <Text style={[styles.trendText, { color: colors.success }]}>+12%</Text>
+            </View>
+          </View>
+          
+          <AnimatedNumber
+            value={metrics.totalRevenue}
+            suffix="€"
+            style={[styles.mainValue, { color: colors.text }]}
+          />
+
+          <View style={styles.goalContainer}>
+            <View style={styles.goalHeader}>
+              <Text style={[styles.goalLabel, { color: colors.textSecondary }]}>
+                Objectif journalier
+              </Text>
+              <Text style={[styles.goalValue, { color: colors.text }]}>
+                {dailyGoal}€
+              </Text>
+            </View>
+            <View style={[styles.progressTrack, { backgroundColor: colors.border }]}>
+              <View 
                 style={[
-                  styles.xpFill,
-                  {
-                    backgroundColor: colors.text,
-                    width: `${(xpCurrent / xpNeeded) * 100}%`,
-                  },
-                ]}
+                  styles.progressFill, 
+                  { 
+                    backgroundColor: progressPercent >= 100 ? colors.success : colors.text,
+                    width: `${progressPercent}%`,
+                  }
+                ]} 
               />
             </View>
-            <Text style={[styles.xpText, { color: colors.textSecondary }]}>
-              {xpCurrent}/{xpNeeded} XP
+            <Text style={[styles.progressText, { color: colors.textSecondary }]}>
+              {Math.round(progressPercent)}% atteint
             </Text>
-          </View>
-
-          <View style={[styles.streakBadge, { borderColor: colors.border }]}>
-            <AnimatedNumber 
-              value={streak} 
-              duration={1000}
-              style={[styles.streakNumber, { color: colors.text }]}
-            />
-            <Text style={[styles.streakLabel, { color: colors.textSecondary }]}>JOURS</Text>
-            <Text style={[styles.streakSub, { color: colors.textSecondary }]}>consécutifs</Text>
           </View>
         </Animated.View>
 
-        {/* Stats row */}
+        {/* KPI Grid */}
         <Animated.View 
           style={[
-            styles.statsRow,
+            styles.kpiGrid,
             {
-              opacity: statsAnim,
-              transform: [{
-                translateY: statsAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [20, 0],
-                }),
-              }],
+              opacity: slideAnim2,
+              transform: [{ translateY: slideAnim2.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }],
             },
           ]}
         >
-          <View style={[styles.statCard, { backgroundColor: colors.cardBackground }]}>
-            <AnimatedNumber 
+          <View style={[styles.kpiCard, { backgroundColor: colors.cardBackground }]}>
+            <Text style={[styles.kpiCardLabel, { color: colors.textSecondary }]}>
+              CLIENTS
+            </Text>
+            <AnimatedNumber
               value={metrics.completedToday}
+              duration={1000}
+              style={[styles.kpiCardValue, { color: colors.text }]}
+            />
+            <Text style={[styles.kpiCardSub, { color: colors.textSecondary }]}>
+              aujourd'hui
+            </Text>
+          </View>
+
+          <View style={[styles.kpiCard, { backgroundColor: colors.cardBackground }]}>
+            <Text style={[styles.kpiCardLabel, { color: colors.textSecondary }]}>
+              PANIER MOYEN
+            </Text>
+            <AnimatedNumber
+              value={avgTicket}
+              suffix="€"
               duration={1200}
-              style={[styles.statValue, { color: colors.text }]}
+              style={[styles.kpiCardValue, { color: colors.text }]}
             />
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-              terminés
+            <Text style={[styles.kpiCardSub, { color: colors.textSecondary }]}>
+              par client
             </Text>
           </View>
-          <View style={[styles.statCard, { backgroundColor: colors.cardBackground }]}>
-            <AnimatedNumber 
-              value={metrics.clientsNotified}
+
+          <View style={[styles.kpiCard, { backgroundColor: colors.cardBackground }]}>
+            <Text style={[styles.kpiCardLabel, { color: colors.textSecondary }]}>
+              TAUX PRÉSENCE
+            </Text>
+            <AnimatedNumber
+              value={conversionRate}
+              suffix="%"
               duration={1400}
-              style={[styles.statValue, { color: colors.text }]}
+              style={[styles.kpiCardValue, { color: conversionRate >= 90 ? colors.success : colors.text }]}
             />
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-              notifiés
+            <Text style={[styles.kpiCardSub, { color: colors.textSecondary }]}>
+              {metrics.noShowsToday} no-show{metrics.noShowsToday > 1 ? 's' : ''}
             </Text>
           </View>
-          <View style={[styles.statCard, { backgroundColor: colors.cardBackground }]}>
-            <AnimatedNumber 
-              value={metrics.noShowsToday}
+
+          <View style={[styles.kpiCard, { backgroundColor: colors.cardBackground }]}>
+            <Text style={[styles.kpiCardLabel, { color: colors.textSecondary }]}>
+              NOTIFIÉS
+            </Text>
+            <AnimatedNumber
+              value={metrics.clientsNotified}
               duration={1600}
-              style={[
-                styles.statValue,
-                { color: metrics.noShowsToday === 0 ? colors.success : colors.danger },
-              ]}
+              style={[styles.kpiCardValue, { color: colors.text }]}
             />
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-              no-shows
+            <Text style={[styles.kpiCardSub, { color: colors.textSecondary }]}>
+              via WhatsApp
             </Text>
           </View>
         </Animated.View>
@@ -257,151 +192,105 @@ export const PerformanceScreen: React.FC<PerformanceScreenProps> = ({ metrics })
         {/* Revenue breakdown */}
         <Animated.View 
           style={[
-            styles.breakdownCard, 
+            styles.breakdownCard,
             { backgroundColor: colors.cardBackground },
             {
-              opacity: breakdownAnim,
-              transform: [{
-                translateY: breakdownAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [20, 0],
-                }),
-              }],
+              opacity: slideAnim3,
+              transform: [{ translateY: slideAnim3.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }],
             },
           ]}
         >
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>
+            Répartition
+          </Text>
+
           <View style={styles.breakdownRow}>
-            <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>
-              Via l'app
+            <View style={styles.breakdownItem}>
+              <View style={[styles.breakdownDot, { backgroundColor: colors.text }]} />
+              <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>
+                Réservations app
+              </Text>
+            </View>
+            <Text style={[styles.breakdownValue, { color: colors.text }]}>
+              {metrics.appRevenue}€
             </Text>
-            <AnimatedNumber 
-              value={metrics.appRevenue}
-              duration={1800}
-              suffix="€"
-              style={[styles.breakdownValue, { color: colors.text }]}
-            />
           </View>
+
           <View style={[styles.breakdownBar, { backgroundColor: colors.border }]}>
-            <View
+            <View 
               style={[
-                styles.breakdownFill,
-                {
+                styles.breakdownFill, 
+                { 
                   backgroundColor: colors.text,
                   width: `${(metrics.appRevenue / metrics.totalRevenue) * 100}%`,
-                },
-              ]}
+                }
+              ]} 
             />
           </View>
-          <Text style={[styles.breakdownPercent, { color: colors.textSecondary }]}>
-            {Math.round((metrics.appRevenue / metrics.totalRevenue) * 100)}% de tes revenus générés via l'app
-          </Text>
+
+          <View style={styles.breakdownRow}>
+            <View style={styles.breakdownItem}>
+              <View style={[styles.breakdownDot, { backgroundColor: colors.border }]} />
+              <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>
+                Walk-ins
+              </Text>
+            </View>
+            <Text style={[styles.breakdownValue, { color: colors.text }]}>
+              {metrics.totalRevenue - metrics.appRevenue}€
+            </Text>
+          </View>
+
+          <View style={styles.statsFooter}>
+            <Text style={[styles.statsFooterText, { color: colors.textSecondary }]}>
+              {Math.round((metrics.appRevenue / metrics.totalRevenue) * 100)}% des revenus via l'application
+            </Text>
+          </View>
         </Animated.View>
 
-        {/* Achievements */}
-        <TouchableOpacity
-          style={[styles.achievementsCard, { backgroundColor: colors.cardBackground }]}
-          onPress={() => setShowAchievements(!showAchievements)}
-          activeOpacity={0.7}
+        {/* Weekly trend placeholder */}
+        <Animated.View 
+          style={[
+            styles.trendCard,
+            { backgroundColor: colors.cardBackground },
+            {
+              opacity: slideAnim3,
+              transform: [{ translateY: slideAnim3.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }],
+            },
+          ]}
         >
-          <View style={styles.achievementsHeader}>
-            <View>
-              <Text style={[styles.achievementsTitle, { color: colors.text }]}>
-                Succès
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>
+            Cette semaine
+          </Text>
+
+          <View style={styles.weekStats}>
+            <View style={styles.weekStatItem}>
+              <Text style={[styles.weekStatValue, { color: colors.text }]}>
+                2,340€
               </Text>
-              <Text style={[styles.achievementsSubtitle, { color: colors.textSecondary }]}>
-                {unlockedCount} sur {achievements.length} débloqués
+              <Text style={[styles.weekStatLabel, { color: colors.textSecondary }]}>
+                CA total
               </Text>
             </View>
-            <View style={[styles.achievementsBadge, { borderColor: colors.border }]}>
-              <Text style={[styles.achievementsBadgeText, { color: colors.text }]}>
-                {Math.round((unlockedCount / achievements.length) * 100)}%
+            <View style={[styles.weekDivider, { backgroundColor: colors.border }]} />
+            <View style={styles.weekStatItem}>
+              <Text style={[styles.weekStatValue, { color: colors.text }]}>
+                47
+              </Text>
+              <Text style={[styles.weekStatLabel, { color: colors.textSecondary }]}>
+                clients
+              </Text>
+            </View>
+            <View style={[styles.weekDivider, { backgroundColor: colors.border }]} />
+            <View style={styles.weekStatItem}>
+              <Text style={[styles.weekStatValue, { color: colors.success }]}>
+                7j
+              </Text>
+              <Text style={[styles.weekStatLabel, { color: colors.textSecondary }]}>
+                série
               </Text>
             </View>
           </View>
-
-          <View style={[styles.achievementsBar, { backgroundColor: colors.border }]}>
-            <View
-              style={[
-                styles.achievementsFill,
-                {
-                  backgroundColor: colors.text,
-                  width: `${(unlockedCount / achievements.length) * 100}%`,
-                },
-              ]}
-            />
-          </View>
-        </TouchableOpacity>
-
-        {showAchievements && (
-          <Animated.View 
-            style={[
-              styles.achievementsList,
-              {
-                opacity: achievementsListAnim,
-                transform: [{
-                  translateY: achievementsListAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [-10, 0],
-                  }),
-                }],
-              },
-            ]}
-          >
-            {achievements.map((achievement, index) => (
-              <Animated.View
-                key={achievement.id}
-                style={[
-                  styles.achievementItem,
-                  {
-                    backgroundColor: colors.cardBackground,
-                    opacity: achievement.unlocked ? 1 : 0.5,
-                    transform: [{
-                      translateX: achievementsListAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [index % 2 === 0 ? -20 : 20, 0],
-                      }),
-                    }],
-                  },
-                ]}
-              >
-                <View style={[styles.achievementIcon, { borderColor: colors.border }]}>
-                  <Text style={styles.achievementEmoji}>{achievement.icon}</Text>
-                </View>
-                <View style={styles.achievementInfo}>
-                  <Text style={[styles.achievementName, { color: colors.text }]}>
-                    {achievement.name}
-                  </Text>
-                  <Text style={[styles.achievementDesc, { color: colors.textSecondary }]}>
-                    {achievement.description}
-                  </Text>
-                  {!achievement.unlocked && achievement.target && (
-                    <View style={styles.achievementProgress}>
-                      <View style={[styles.achievementBar, { backgroundColor: colors.border }]}>
-                        <View
-                          style={[
-                            styles.achievementBarFill,
-                            {
-                              backgroundColor: colors.text,
-                              width: `${((achievement.progress || 0) / achievement.target) * 100}%`,
-                            },
-                          ]}
-                        />
-                      </View>
-                      <Text style={[styles.achievementProgressText, { color: colors.textSecondary }]}>
-                        {achievement.progress}/{achievement.target}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-                {achievement.unlocked && (
-                  <View style={[styles.unlockedCheck, { backgroundColor: colors.success }]}>
-                    <Text style={styles.checkMark}>✓</Text>
-                  </View>
-                )}
-              </Animated.View>
-            ))}
-          </Animated.View>
-        )}
+        </Animated.View>
 
         <View style={styles.scrollPadding} />
       </ScrollView>
@@ -435,253 +324,164 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingTop: spacing.sm,
   },
-  revenueWrapper: {
+  mainCard: {
     marginHorizontal: spacing.lg,
-    marginBottom: spacing.lg,
+    padding: spacing.lg,
+    borderRadius: borderRadius.lg,
+    marginBottom: spacing.md,
   },
-  revenueContent: {
-    padding: spacing.xl,
-  },
-  revenueLabel: {
-    ...typography.label,
+  mainCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: spacing.sm,
   },
-  revenueValue: {
-    ...typography.largeNumber,
+  kpiLabel: {
+    ...typography.label,
+  },
+  trendBadge: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.sm,
+  },
+  trendText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  mainValue: {
+    fontSize: 48,
+    fontWeight: '200',
+    letterSpacing: -1,
     marginBottom: spacing.lg,
   },
-  goalSection: {},
-  goalRow: {
+  goalContainer: {},
+  goalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: spacing.sm,
   },
-  goalText: {
+  goalLabel: {
     ...typography.caption,
   },
-  goalPercent: {
+  goalValue: {
     ...typography.caption,
     fontWeight: '600',
   },
-  progressBar: {
-    height: 3,
-    borderRadius: 1.5,
+  progressTrack: {
+    height: 4,
+    borderRadius: 2,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
+    borderRadius: 2,
   },
-  goalReached: {
+  progressText: {
     ...typography.caption,
     marginTop: spacing.sm,
-    textAlign: 'center',
-    fontWeight: '600',
   },
-  badgesSection: {
+  kpiGrid: {
     flexDirection: 'row',
-    paddingHorizontal: spacing.lg,
-    gap: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  levelBadge: {
-    flex: 1,
-    borderWidth: 1,
-    borderRadius: borderRadius.md,
-    padding: spacing.md,
-    alignItems: 'center',
-  },
-  levelNumber: {
-    fontSize: 36,
-    fontWeight: '200',
-    lineHeight: 42,
-  },
-  levelLabel: {
-    ...typography.label,
-    marginTop: spacing.xs,
-  },
-  xpBar: {
-    width: '100%',
-    height: 2,
-    borderRadius: 1,
-    marginTop: spacing.sm,
-    overflow: 'hidden',
-  },
-  xpFill: {
-    height: '100%',
-  },
-  xpText: {
-    fontSize: 10,
-    marginTop: spacing.xs,
-  },
-  streakBadge: {
-    flex: 1,
-    borderWidth: 1,
-    borderRadius: borderRadius.md,
-    padding: spacing.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  streakNumber: {
-    fontSize: 36,
-    fontWeight: '200',
-    lineHeight: 42,
-  },
-  streakLabel: {
-    ...typography.label,
-    marginTop: spacing.xs,
-  },
-  streakSub: {
-    fontSize: 10,
-    marginTop: 2,
-  },
-  statsRow: {
-    flexDirection: 'row',
+    flexWrap: 'wrap',
     paddingHorizontal: spacing.lg,
     gap: spacing.sm,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
   },
-  statCard: {
-    flex: 1,
+  kpiCard: {
+    width: '48%',
+    flexGrow: 1,
     padding: spacing.md,
     borderRadius: borderRadius.md,
-    alignItems: 'center',
   },
-  statValue: {
-    ...typography.h2,
-    marginBottom: 2,
-  },
-  statLabel: {
+  kpiCardLabel: {
     ...typography.label,
+    marginBottom: spacing.xs,
+  },
+  kpiCardValue: {
+    fontSize: 28,
+    fontWeight: '300',
+    letterSpacing: -0.5,
+  },
+  kpiCardSub: {
+    ...typography.caption,
+    marginTop: spacing.xs,
   },
   breakdownCard: {
     marginHorizontal: spacing.lg,
-    padding: spacing.md,
-    borderRadius: borderRadius.md,
-    marginBottom: spacing.lg,
+    padding: spacing.lg,
+    borderRadius: borderRadius.lg,
+    marginBottom: spacing.md,
+  },
+  sectionTitle: {
+    ...typography.bodyBold,
+    marginBottom: spacing.md,
   },
   breakdownRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: spacing.sm,
+  },
+  breakdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  breakdownDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
   breakdownLabel: {
     ...typography.body,
   },
   breakdownValue: {
-    ...typography.h3,
+    ...typography.bodyBold,
   },
   breakdownBar: {
-    height: 3,
-    borderRadius: 1.5,
+    height: 6,
+    borderRadius: 3,
     overflow: 'hidden',
-    marginBottom: spacing.sm,
+    marginBottom: spacing.md,
   },
   breakdownFill: {
     height: '100%',
   },
-  breakdownPercent: {
+  statsFooter: {
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.1)',
+  },
+  statsFooterText: {
     ...typography.caption,
   },
-  achievementsCard: {
+  trendCard: {
     marginHorizontal: spacing.lg,
-    padding: spacing.md,
-    borderRadius: borderRadius.md,
-    marginBottom: spacing.sm,
-  },
-  achievementsHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    padding: spacing.lg,
+    borderRadius: borderRadius.lg,
     marginBottom: spacing.md,
   },
-  achievementsTitle: {
-    ...typography.bodyBold,
-  },
-  achievementsSubtitle: {
-    ...typography.caption,
-    marginTop: 2,
-  },
-  achievementsBadge: {
-    borderWidth: 1,
-    borderRadius: borderRadius.sm,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-  },
-  achievementsBadgeText: {
-    ...typography.caption,
-    fontWeight: '600',
-  },
-  achievementsBar: {
-    height: 3,
-    borderRadius: 1.5,
-    overflow: 'hidden',
-  },
-  achievementsFill: {
-    height: '100%',
-  },
-  achievementsList: {
-    paddingHorizontal: spacing.lg,
-  },
-  achievementItem: {
+  weekStats: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: spacing.md,
-    borderRadius: borderRadius.md,
-    marginBottom: spacing.sm,
   },
-  achievementIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: spacing.md,
-  },
-  achievementEmoji: {
-    fontSize: 20,
-  },
-  achievementInfo: {
+  weekStatItem: {
     flex: 1,
+    alignItems: 'center',
   },
-  achievementName: {
-    ...typography.bodyBold,
+  weekStatValue: {
+    fontSize: 24,
+    fontWeight: '300',
+    marginBottom: spacing.xs,
   },
-  achievementDesc: {
+  weekStatLabel: {
     ...typography.caption,
-    marginTop: 2,
   },
-  achievementProgress: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: spacing.xs,
-    gap: spacing.sm,
-  },
-  achievementBar: {
-    flex: 1,
-    height: 3,
-    borderRadius: 1.5,
-    overflow: 'hidden',
-  },
-  achievementBarFill: {
-    height: '100%',
-  },
-  achievementProgressText: {
-    fontSize: 10,
-  },
-  unlockedCheck: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  checkMark: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '700',
+  weekDivider: {
+    width: 1,
+    height: 40,
   },
   scrollPadding: {
-    height: spacing.xxl,
+    height: spacing.xl,
   },
 });

@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   Linking,
-  ScrollView,
 } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { spacing, borderRadius } from '../theme/spacing';
@@ -87,12 +86,7 @@ export const WhatsAppModal: React.FC<WhatsAppModalProps> = ({
 
   return (
     <SwipeableModal visible={visible} onClose={onClose} maxHeight={500}>
-      <ScrollView 
-        style={styles.scrollView}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-        bounces={false}
-      >
+      <View style={styles.content}>
         {/* Header */}
         <View style={styles.header}>
           <Text style={[styles.title, { color: colors.text }]}>
@@ -124,19 +118,15 @@ export const WhatsAppModal: React.FC<WhatsAppModalProps> = ({
             </View>
           </TouchableOpacity>
         ))}
-      </ScrollView>
+      </View>
     </SwipeableModal>
   );
 };
 
 const styles = StyleSheet.create({
-  scrollView: {
-    flex: 1,
-  },
   content: {
     padding: spacing.lg,
     paddingTop: 0,
-    paddingBottom: spacing.xxl,
   },
   header: {
     marginBottom: spacing.lg,
@@ -179,4 +169,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
 });
+
+
+
 

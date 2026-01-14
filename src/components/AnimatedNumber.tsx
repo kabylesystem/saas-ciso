@@ -42,3 +42,6 @@ export const AnimatedNumber: React.FC<AnimatedNumberProps> = ({
     </Text>
   );
 };
+
+
+

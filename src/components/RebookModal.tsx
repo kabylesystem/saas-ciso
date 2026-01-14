@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  ScrollView,
 } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { spacing, borderRadius } from '../theme/spacing';
@@ -47,12 +46,7 @@ export const RebookModal: React.FC<RebookModalProps> = ({
 
   return (
     <SwipeableModal visible={visible} onClose={onClose}>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-        bounces={false}
-      >
+      <View style={styles.content}>
         {/* Header */}
         <View style={styles.header}>
           <Text style={[styles.title, { color: colors.text }]}>
@@ -155,19 +149,15 @@ export const RebookModal: React.FC<RebookModalProps> = ({
             Confirmer
           </Text>
         </TouchableOpacity>
-      </ScrollView>
+      </View>
     </SwipeableModal>
   );
 };
 
 const styles = StyleSheet.create({
-  scrollView: {
-    flex: 1,
-  },
   content: {
     padding: spacing.lg,
     paddingTop: 0,
-    paddingBottom: spacing.xxl,
   },
   header: {
     marginBottom: spacing.lg,
@@ -248,4 +238,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
 });
+
+
+
 
