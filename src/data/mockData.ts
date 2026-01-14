@@ -257,6 +257,7 @@ const appointmentsData: Appointment[] = [
 ];
 
 export const initialAppointments: Appointment[] = appointmentsData;
+export const mockAppointments: Appointment[] = appointmentsData;
 
 const totalRev = appointmentsData.reduce((sum, apt) => sum + apt.price, 0);
 
