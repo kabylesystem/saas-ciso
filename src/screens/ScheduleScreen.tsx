@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { View, Text, ScrollView, StyleSheet, SafeAreaView, Alert, Animated } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, SafeAreaView, Animated } from 'react-native';
 import { Appointment } from '../types';
 import { useTheme } from '../context/ThemeContext';
 import { spacing } from '../theme/spacing';
@@ -10,6 +10,7 @@ import { WhatsAppModal } from '../components/WhatsAppModal';
 import { ClientDetailModal } from '../components/ClientDetailModal';
 import { RebookModal } from '../components/RebookModal';
 import { ThemeToggle } from '../components/ThemeToggle';
+import { CustomAlert } from '../components/CustomAlert';
 import { recalculateAppointments } from '../utils/appointmentUtils';
 import { addMinutes } from '../utils/timeUtils';
 
@@ -24,14 +25,25 @@ export const ScheduleScreen: React.FC<ScheduleScreenProps> = ({
 }) => {
   const { colors } = useTheme();
   const [activeAppointmentId, setActiveAppointmentId] = useState<string | null>(
-    appointments.find(apt => apt.isActive)?.id || null
+    appointments?.find(apt => apt.isActive)?.id || null
   );
 
-  // Separate state for each modal's appointment
+  // Modal states
   const [clientDetailAppointment, setClientDetailAppointment] = useState<Appointment | null>(null);
   const [whatsAppAppointment, setWhatsAppAppointment] = useState<Appointment | null>(null);
   const [rebookAppointment, setRebookAppointment] = useState<Appointment | null>(null);
   
+  // Store appointment for no-show action
+  const noShowAppointmentRef = useRef<Appointment | null>(null);
+  
+  // Custom alert state
+  const [alertConfig, setAlertConfig] = useState<{
+    visible: boolean;
+    title: string;
+    message?: string;
+    buttons?: { text: string; style?: 'default' | 'cancel' | 'destructive'; onPress?: () => void }[];
+  }>({ visible: false, title: '' });
+
   const [delayMinutes, setDelayMinutes] = useState(0);
 
   // Animations
@@ -40,23 +52,13 @@ export const ScheduleScreen: React.FC<ScheduleScreenProps> = ({
 
   useEffect(() => {
     Animated.stagger(100, [
-      Animated.spring(headerAnim, {
-        toValue: 1,
-        useNativeDriver: true,
-        tension: 50,
-        friction: 8,
-      }),
-      Animated.spring(labelAnim, {
-        toValue: 1,
-        useNativeDriver: true,
-        tension: 50,
-        friction: 8,
-      }),
+      Animated.spring(headerAnim, { toValue: 1, useNativeDriver: true, tension: 50, friction: 8 }),
+      Animated.spring(labelAnim, { toValue: 1, useNativeDriver: true, tension: 50, friction: 8 }),
     ]).start();
   }, []);
 
   useEffect(() => {
-    const active = appointments.find(apt => apt.isActive);
+    const active = appointments?.find(apt => apt.isActive);
     if (active && active.id !== activeAppointmentId) {
       setActiveAppointmentId(active.id);
     } else if (!active && activeAppointmentId) {
@@ -65,10 +67,12 @@ export const ScheduleScreen: React.FC<ScheduleScreenProps> = ({
   }, [appointments]);
 
   const activeAppointment = useMemo(() => {
+    if (!appointments) return null;
     return appointments.find(apt => apt.id === activeAppointmentId) || null;
   }, [appointments, activeAppointmentId]);
 
   const upcomingAppointments = useMemo(() => {
+    if (!appointments) return [];
     return appointments
       .filter(apt => !apt.isActive && apt.id !== activeAppointmentId && !apt.isNoShow)
       .sort((a, b) => {
@@ -148,11 +152,7 @@ export const ScheduleScreen: React.FC<ScheduleScreenProps> = ({
         apt.id === nextAppointment.id ? { ...apt, isActive: true, recalculatedStartTime: endTime } : apt
       );
 
-      const recalculated = recalculateAppointments(
-        updated,
-        nextAppointment.id,
-        endTime
-      );
+      const recalculated = recalculateAppointments(updated, nextAppointment.id, endTime);
 
       setActiveAppointmentId(nextAppointment.id);
       onAppointmentsChange(recalculated);
@@ -176,7 +176,7 @@ export const ScheduleScreen: React.FC<ScheduleScreenProps> = ({
     setClientDetailAppointment(null);
     setTimeout(() => {
       setWhatsAppAppointment(apt);
-    }, 400);
+    }, 350);
   };
 
   const handleRebookFromDetail = () => {
@@ -184,47 +184,58 @@ export const ScheduleScreen: React.FC<ScheduleScreenProps> = ({
     setClientDetailAppointment(null);
     setTimeout(() => {
       setRebookAppointment(apt);
-    }, 400);
+    }, 350);
+  };
+
+  const executeNoShow = () => {
+    const apt = noShowAppointmentRef.current;
+    if (!apt) return;
+    
+    const updated = appointments.map(a =>
+      a.id === apt.id ? { ...a, isNoShow: true, isActive: false } : a
+    );
+    onAppointmentsChange(updated);
+    noShowAppointmentRef.current = null;
   };
 
   const handleNoShow = () => {
     if (!clientDetailAppointment) return;
+    
+    // Store in ref to avoid closure issues
+    noShowAppointmentRef.current = clientDetailAppointment;
+    const clientName = clientDetailAppointment.clientName;
+    
+    // Close detail modal first
+    setClientDetailAppointment(null);
 
-    Alert.alert(
-      'No-show',
-      `Marquer ${clientDetailAppointment.clientName} comme absent ?`,
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Confirmer',
-          style: 'destructive',
-          onPress: () => {
-            const updated = appointments.map(apt =>
-              apt.id === clientDetailAppointment.id
-                ? { ...apt, isNoShow: true, isActive: false }
-                : apt
-            );
-            onAppointmentsChange(updated);
-            setClientDetailAppointment(null);
-          },
-        },
-      ]
-    );
+    setTimeout(() => {
+      setAlertConfig({
+        visible: true,
+        title: 'No-show',
+        message: `Marquer ${clientName} comme absent ?`,
+        buttons: [
+          { text: 'Annuler', style: 'cancel', onPress: () => { noShowAppointmentRef.current = null; } },
+          { text: 'Confirmer', style: 'destructive', onPress: executeNoShow },
+        ],
+      });
+    }, 350);
   };
 
   const handleRebook = (weeks: number) => {
-    Alert.alert(
-      'RDV confirmé',
-      `${rebookAppointment?.clientName} → dans ${weeks} semaine${weeks > 1 ? 's' : ''}`,
-      [{ text: 'OK' }]
-    );
+    const clientName = rebookAppointment?.clientName;
+    setAlertConfig({
+      visible: true,
+      title: 'RDV confirmé ✓',
+      message: `${clientName} reviendra dans ${weeks} semaine${weeks > 1 ? 's' : ''}`,
+      buttons: [{ text: 'Parfait', style: 'default' }],
+    });
   };
 
-  const totalRevenue = appointments
+  const totalRevenue = (appointments || [])
     .filter(apt => !apt.isNoShow)
     .reduce((sum, apt) => sum + apt.price, 0);
 
-  const clientCount = appointments.filter(a => !a.isNoShow).length;
+  const clientCount = (appointments || []).filter(a => !a.isNoShow).length;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -301,7 +312,7 @@ export const ScheduleScreen: React.FC<ScheduleScreenProps> = ({
         <View style={styles.scrollPadding} />
       </ScrollView>
 
-      {/* Modals - each with its own appointment state */}
+      {/* Modals */}
       <WhatsAppModal
         visible={whatsAppAppointment !== null}
         onClose={() => setWhatsAppAppointment(null)}
@@ -323,6 +334,15 @@ export const ScheduleScreen: React.FC<ScheduleScreenProps> = ({
         onClose={() => setRebookAppointment(null)}
         appointment={rebookAppointment}
         onConfirm={handleRebook}
+      />
+
+      {/* Custom Alert */}
+      <CustomAlert
+        visible={alertConfig.visible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        buttons={alertConfig.buttons}
+        onClose={() => setAlertConfig({ ...alertConfig, visible: false })}
       />
     </SafeAreaView>
   );

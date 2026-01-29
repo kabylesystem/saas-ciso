@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
+import { View, Text, StyleSheet, Animated, TouchableWithoutFeedback } from 'react-native';
 import { Appointment } from '../types';
 import { useTheme } from '../context/ThemeContext';
 import { spacing, borderRadius } from '../theme/spacing';
@@ -14,6 +14,38 @@ interface ActiveAppointmentCardProps {
   onClientPress: () => void;
 }
 
+const AnimatedButton: React.FC<{
+  onPress: () => void;
+  style: any;
+  children: React.ReactNode;
+}> = ({ onPress, style, children }) => {
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    Animated.spring(scale, { toValue: 0.92, useNativeDriver: true, tension: 200, friction: 10 }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scale, { toValue: 1, useNativeDriver: true, tension: 200, friction: 10 }).start();
+  };
+
+  const handlePress = () => {
+    Animated.sequence([
+      Animated.timing(scale, { toValue: 0.9, duration: 50, useNativeDriver: true }),
+      Animated.spring(scale, { toValue: 1, useNativeDriver: true, tension: 300, friction: 10 }),
+    ]).start();
+    onPress();
+  };
+
+  return (
+    <TouchableWithoutFeedback onPressIn={handlePressIn} onPressOut={handlePressOut} onPress={handlePress}>
+      <Animated.View style={[style, { transform: [{ scale }] }]}>
+        {children}
+      </Animated.View>
+    </TouchableWithoutFeedback>
+  );
+};
+
 export const ActiveAppointmentCard: React.FC<ActiveAppointmentCardProps> = ({
   appointment,
   onDecreaseDuration,
@@ -23,21 +55,14 @@ export const ActiveAppointmentCard: React.FC<ActiveAppointmentCardProps> = ({
 }) => {
   const { colors } = useTheme();
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const clientScale = useRef(new Animated.Value(1)).current;
   const [lastDuration, setLastDuration] = React.useState(appointment.duration);
 
   useEffect(() => {
     if (appointment.duration !== lastDuration) {
       Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.01,
-          duration: 100,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 100,
-          useNativeDriver: true,
-        }),
+        Animated.timing(pulseAnim, { toValue: 1.01, duration: 100, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 100, useNativeDriver: true }),
       ]).start();
       setLastDuration(appointment.duration);
     }
@@ -45,6 +70,14 @@ export const ActiveAppointmentCard: React.FC<ActiveAppointmentCardProps> = ({
 
   const client = appointment.client;
   const isVIP = client && client.visitCount >= 10;
+
+  const handleClientPressIn = () => {
+    Animated.spring(clientScale, { toValue: 0.98, useNativeDriver: true, tension: 200, friction: 10 }).start();
+  };
+
+  const handleClientPressOut = () => {
+    Animated.spring(clientScale, { toValue: 1, useNativeDriver: true, tension: 200, friction: 10 }).start();
+  };
 
   return (
     <Animated.View style={[styles.wrapper, { transform: [{ scale: pulseAnim }] }]}>
@@ -59,21 +92,27 @@ export const ActiveAppointmentCard: React.FC<ActiveAppointmentCardProps> = ({
           </View>
 
           {/* Client info - clickable */}
-          <TouchableOpacity onPress={onClientPress} activeOpacity={0.7}>
-            <View style={styles.clientRow}>
-              <Text style={[styles.clientName, { color: colors.text }]}>
-                {appointment.clientName}
+          <TouchableWithoutFeedback 
+            onPressIn={handleClientPressIn}
+            onPressOut={handleClientPressOut}
+            onPress={onClientPress}
+          >
+            <Animated.View style={{ transform: [{ scale: clientScale }] }}>
+              <View style={styles.clientRow}>
+                <Text style={[styles.clientName, { color: colors.text }]}>
+                  {appointment.clientName}
+                </Text>
+                {isVIP && (
+                  <View style={[styles.vipBadge, { backgroundColor: '#FFD700' }]}>
+                    <Text style={styles.vipText}>VIP</Text>
+                  </View>
+                )}
+              </View>
+              <Text style={[styles.service, { color: colors.textSecondary }]}>
+                {appointment.serviceName}
               </Text>
-              {isVIP && (
-                <View style={[styles.vipBadge, { backgroundColor: '#FFD700' }]}>
-                  <Text style={styles.vipText}>VIP</Text>
-                </View>
-              )}
-            </View>
-            <Text style={[styles.service, { color: colors.textSecondary }]}>
-              {appointment.serviceName}
-            </Text>
-          </TouchableOpacity>
+            </Animated.View>
+          </TouchableWithoutFeedback>
 
           {/* Time and price */}
           <View style={styles.infoRow}>
@@ -99,32 +138,29 @@ export const ActiveAppointmentCard: React.FC<ActiveAppointmentCardProps> = ({
 
           {/* Duration controls */}
           <View style={styles.durationRow}>
-            <TouchableOpacity
+            <AnimatedButton
               style={[styles.durationBtn, { backgroundColor: colors.buttonSecondary }]}
               onPress={onDecreaseDuration}
-              activeOpacity={0.6}
             >
               <Text style={[styles.durationText, { color: colors.text }]}>−15</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </AnimatedButton>
+            <AnimatedButton
               style={[styles.durationBtn, { backgroundColor: colors.buttonSecondary }]}
               onPress={onIncreaseDuration}
-              activeOpacity={0.6}
             >
               <Text style={[styles.durationText, { color: colors.text }]}>+15</Text>
-            </TouchableOpacity>
+            </AnimatedButton>
           </View>
 
           {/* Finish button */}
-          <TouchableOpacity
+          <AnimatedButton
             style={[styles.finishBtn, { backgroundColor: colors.buttonPrimary }]}
             onPress={onFinish}
-            activeOpacity={0.8}
           >
             <Text style={[styles.finishText, { color: colors.buttonPrimaryText }]}>
               Terminer
             </Text>
-          </TouchableOpacity>
+          </AnimatedButton>
         </View>
       </GlowCard>
     </Animated.View>

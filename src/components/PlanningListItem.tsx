@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Animated, TouchableWithoutFeedback, Easing } from 'react-native';
 import { Appointment } from '../types';
 import { useTheme } from '../context/ThemeContext';
 import { spacing, borderRadius } from '../theme/spacing';
@@ -22,25 +22,33 @@ export const PlanningListItem: React.FC<PlanningListItemProps> = ({
   const slideAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const scaleAnim = useRef(new Animated.Value(1)).current;
+  const shimmerAnim = useRef(new Animated.Value(0)).current;
   const prevTimeRef = useRef(appointment.recalculatedStartTime);
 
   const client = appointment.client;
   const isVIP = client && client.visitCount >= 10;
   const hasWarning = client && client.noShowCount >= 2;
 
+  // Shimmer animation for VIP
+  useEffect(() => {
+    if (isVIP) {
+      const shimmer = Animated.loop(
+        Animated.sequence([
+          Animated.timing(shimmerAnim, { toValue: 1, duration: 2000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+          Animated.timing(shimmerAnim, { toValue: 0, duration: 2000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        ])
+      );
+      shimmer.start();
+      return () => shimmer.stop();
+    }
+  }, [isVIP]);
+
   useEffect(() => {
     if (prevTimeRef.current !== appointment.recalculatedStartTime) {
+      // Pulse when time changes
       Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.02,
-          duration: 150,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 150,
-          useNativeDriver: true,
-        }),
+        Animated.timing(pulseAnim, { toValue: 1.03, duration: 150, useNativeDriver: true }),
+        Animated.spring(pulseAnim, { toValue: 1, useNativeDriver: true, tension: 200, friction: 10 }),
       ]).start();
       prevTimeRef.current = appointment.recalculatedStartTime;
     }
@@ -49,7 +57,7 @@ export const PlanningListItem: React.FC<PlanningListItemProps> = ({
   useEffect(() => {
     Animated.spring(slideAnim, {
       toValue: 1,
-      delay: index * 60,
+      delay: index * 40,
       useNativeDriver: true,
       tension: 50,
       friction: 8,
@@ -57,29 +65,31 @@ export const PlanningListItem: React.FC<PlanningListItemProps> = ({
   }, []);
 
   const handlePressIn = () => {
-    Animated.spring(scaleAnim, {
-      toValue: 0.97,
-      useNativeDriver: true,
-      tension: 100,
-      friction: 10,
-    }).start();
+    Animated.spring(scaleAnim, { toValue: 0.96, useNativeDriver: true, tension: 300, friction: 10 }).start();
   };
 
   const handlePressOut = () => {
-    Animated.spring(scaleAnim, {
-      toValue: 1,
-      useNativeDriver: true,
-      tension: 100,
-      friction: 10,
-    }).start();
+    Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, tension: 300, friction: 10 }).start();
   };
 
+  const handlePress = () => {
+    Animated.sequence([
+      Animated.timing(scaleAnim, { toValue: 0.94, duration: 50, useNativeDriver: true }),
+      Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, tension: 400, friction: 8 }),
+    ]).start();
+    onPress();
+  };
+
+  const vipScale = shimmerAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 1.1],
+  });
+
   return (
-    <TouchableOpacity 
-      activeOpacity={1} 
-      onPress={onPress}
+    <TouchableWithoutFeedback
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
+      onPress={handlePress}
     >
       <Animated.View
         style={[
@@ -90,9 +100,9 @@ export const PlanningListItem: React.FC<PlanningListItemProps> = ({
             transform: [
               { scale: Animated.multiply(pulseAnim, scaleAnim) },
               {
-                translateY: slideAnim.interpolate({
+                translateX: slideAnim.interpolate({
                   inputRange: [0, 1],
-                  outputRange: [20, 0],
+                  outputRange: [-30, 0],
                 }),
               },
             ],
@@ -113,9 +123,9 @@ export const PlanningListItem: React.FC<PlanningListItemProps> = ({
               {appointment.clientName}
             </Text>
             {isVIP && (
-              <View style={[styles.badge, { backgroundColor: '#FFD700' }]}>
+              <Animated.View style={[styles.badge, { backgroundColor: '#FFD700', transform: [{ scale: vipScale }] }]}>
                 <Text style={styles.badgeText}>VIP</Text>
-              </View>
+              </Animated.View>
             )}
             {hasWarning && (
               <Text style={[styles.warningIcon, { color: colors.danger }]}>⚠</Text>
@@ -131,7 +141,7 @@ export const PlanningListItem: React.FC<PlanningListItemProps> = ({
           {appointment.price}€
         </Text>
       </Animated.View>
-    </TouchableOpacity>
+    </TouchableWithoutFeedback>
   );
 };
 

@@ -15,9 +15,20 @@ export const AnimatedNumber: React.FC<AnimatedNumberProps> = ({
   style,
 }) => {
   const animatedValue = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(1)).current;
   const [displayValue, setDisplayValue] = useState(0);
+  const prevValue = useRef(0);
 
   useEffect(() => {
+    // Bounce when value changes significantly
+    if (Math.abs(value - prevValue.current) > 0) {
+      Animated.sequence([
+        Animated.timing(scaleAnim, { toValue: 1.1, duration: 100, useNativeDriver: true }),
+        Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, tension: 200, friction: 8 }),
+      ]).start();
+    }
+    prevValue.current = value;
+
     animatedValue.setValue(0);
     
     Animated.timing(animatedValue, {
@@ -37,11 +48,10 @@ export const AnimatedNumber: React.FC<AnimatedNumberProps> = ({
   }, [value]);
 
   return (
-    <Text style={style}>
+    <Animated.Text style={[style, { transform: [{ scale: scaleAnim }] }]}>
       {displayValue}{suffix}
-    </Text>
+    </Animated.Text>
   );
 };
-
 
 

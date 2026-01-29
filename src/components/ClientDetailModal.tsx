@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Animated,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { spacing, borderRadius } from '../theme/spacing';
@@ -27,6 +28,38 @@ const hairTypeLabels: Record<HairType, string> = {
   coily: 'Crépus',
 };
 
+const AnimatedButton: React.FC<{
+  onPress: () => void;
+  style: any;
+  children: React.ReactNode;
+}> = ({ onPress, style, children }) => {
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    Animated.spring(scale, { toValue: 0.95, useNativeDriver: true, tension: 200, friction: 10 }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scale, { toValue: 1, useNativeDriver: true, tension: 200, friction: 10 }).start();
+  };
+
+  const handlePress = () => {
+    Animated.sequence([
+      Animated.timing(scale, { toValue: 0.92, duration: 50, useNativeDriver: true }),
+      Animated.spring(scale, { toValue: 1, useNativeDriver: true, tension: 300, friction: 10 }),
+    ]).start();
+    onPress();
+  };
+
+  return (
+    <TouchableWithoutFeedback onPressIn={handlePressIn} onPressOut={handlePressOut} onPress={handlePress}>
+      <Animated.View style={[style, { transform: [{ scale }] }]}>
+        {children}
+      </Animated.View>
+    </TouchableWithoutFeedback>
+  );
+};
+
 export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
   visible,
   onClose,
@@ -44,12 +77,10 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
   const hasNoShowHistory = client.noShowCount > 0;
 
   const handleWhatsApp = () => {
-    onClose();
     onWhatsApp();
   };
 
   const handleRebook = () => {
-    onClose();
     onRebook();
   };
 
@@ -136,34 +167,31 @@ export const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
 
         {/* Actions */}
         <View style={styles.actions}>
-          <TouchableOpacity
+          <AnimatedButton
             style={[styles.actionBtn, { backgroundColor: '#25D366' }]}
             onPress={handleWhatsApp}
-            activeOpacity={0.7}
           >
             <Text style={styles.actionText}>WhatsApp</Text>
-          </TouchableOpacity>
+          </AnimatedButton>
 
-          <TouchableOpacity
+          <AnimatedButton
             style={[styles.actionBtn, { backgroundColor: colors.buttonPrimary }]}
             onPress={handleRebook}
-            activeOpacity={0.7}
           >
             <Text style={[styles.actionText, { color: colors.buttonPrimaryText }]}>
               Re-booker
             </Text>
-          </TouchableOpacity>
+          </AnimatedButton>
         </View>
 
-        <TouchableOpacity
+        <AnimatedButton
           style={[styles.noShowBtn, { borderColor: colors.border, borderWidth: 1 }]}
           onPress={onNoShow}
-          activeOpacity={0.7}
         >
           <Text style={[styles.noShowText, { color: colors.danger }]}>
             Marquer No-show
           </Text>
-        </TouchableOpacity>
+        </AnimatedButton>
       </View>
     </SwipeableModal>
   );
@@ -286,6 +314,5 @@ const styles = StyleSheet.create({
     ...typography.body,
   },
 });
-
 
 

@@ -3,11 +3,9 @@ import {
   View,
   StyleSheet,
   Modal,
-  TouchableOpacity,
   Animated,
   Dimensions,
   PanResponder,
-  ScrollView,
 } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { spacing, borderRadius } from '../theme/spacing';
@@ -20,7 +18,7 @@ interface SwipeableModalProps {
 }
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-const SWIPE_THRESHOLD = 80;
+const SWIPE_THRESHOLD = 60;
 
 export const SwipeableModal: React.FC<SwipeableModalProps> = ({
   visible,
@@ -31,35 +29,43 @@ export const SwipeableModal: React.FC<SwipeableModalProps> = ({
   const { colors } = useTheme();
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const scrollOffset = useRef(0);
-  const isScrolling = useRef(false);
 
+  // Global pan responder - works anywhere on screen
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
-      onMoveShouldSetPanResponder: (_, gestureState) => {
-        // Allow swipe down if at top of scroll or scrolling down
-        const isSwipingDown = gestureState.dy > 10;
-        const isAtTop = scrollOffset.current <= 0;
-        return isSwipingDown && (isAtTop || !isScrolling.current);
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gs) => {
+        // Capture any downward swipe from anywhere
+        return gs.dy > 5 && Math.abs(gs.dy) > Math.abs(gs.dx);
       },
       onPanResponderGrant: () => {
-        // Started gesture
+        // Visual feedback when gesture starts
       },
-      onPanResponderMove: (_, gestureState) => {
-        if (gestureState.dy > 0) {
-          translateY.setValue(gestureState.dy);
+      onPanResponderMove: (_, gs) => {
+        if (gs.dy > 0) {
+          translateY.setValue(gs.dy);
+          // Fade overlay as user swipes
+          fadeAnim.setValue(1 - Math.min(gs.dy / 300, 0.5));
         }
       },
-      onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dy > SWIPE_THRESHOLD || gestureState.vy > 0.5) {
+      onPanResponderRelease: (_, gs) => {
+        if (gs.dy > SWIPE_THRESHOLD || gs.vy > 0.3) {
           closeModal();
         } else {
-          Animated.spring(translateY, {
-            toValue: 0,
-            friction: 8,
-            useNativeDriver: true,
-          }).start();
+          // Snap back with spring
+          Animated.parallel([
+            Animated.spring(translateY, {
+              toValue: 0,
+              tension: 100,
+              friction: 10,
+              useNativeDriver: true,
+            }),
+            Animated.timing(fadeAnim, {
+              toValue: 1,
+              duration: 150,
+              useNativeDriver: true,
+            }),
+          ]).start();
         }
       },
     })
@@ -85,12 +91,11 @@ export const SwipeableModal: React.FC<SwipeableModalProps> = ({
   useEffect(() => {
     if (visible) {
       translateY.setValue(SCREEN_HEIGHT);
-      scrollOffset.current = 0;
       Animated.parallel([
         Animated.spring(translateY, {
           toValue: 0,
-          friction: 8,
           tension: 65,
+          friction: 10,
           useNativeDriver: true,
         }),
         Animated.timing(fadeAnim, {
@@ -106,62 +111,49 @@ export const SwipeableModal: React.FC<SwipeableModalProps> = ({
 
   return (
     <Modal transparent visible={visible} animationType="none">
-      <Animated.View style={[styles.overlay, { opacity: fadeAnim }]}>
-        <TouchableOpacity style={styles.overlayTouch} onPress={closeModal} />
-      </Animated.View>
-
-      <Animated.View
+      {/* Full screen gesture capture area */}
+      <Animated.View 
+        style={[styles.fullScreen, { opacity: fadeAnim }]}
         {...panResponder.panHandlers}
-        style={[
-          styles.container,
-          {
-            backgroundColor: colors.cardBackground,
-            maxHeight,
-            transform: [{ translateY }],
-          },
-        ]}
       >
-        {/* Swipe handle */}
-        <View style={styles.handleArea}>
-          <View style={[styles.handle, { backgroundColor: colors.border }]} />
-        </View>
+        {/* Overlay background */}
+        <View style={styles.overlay} />
 
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          bounces={false}
-          onScroll={(e) => {
-            scrollOffset.current = e.nativeEvent.contentOffset.y;
-          }}
-          onScrollBeginDrag={() => {
-            isScrolling.current = true;
-          }}
-          onScrollEndDrag={() => {
-            isScrolling.current = false;
-          }}
-          scrollEventThrottle={16}
+        {/* Modal content */}
+        <Animated.View
+          style={[
+            styles.container,
+            {
+              backgroundColor: colors.cardBackground,
+              maxHeight,
+              transform: [{ translateY }],
+            },
+          ]}
         >
-          {children}
-        </ScrollView>
+          {/* Swipe handle indicator */}
+          <View style={styles.handleArea}>
+            <View style={[styles.handle, { backgroundColor: colors.border }]} />
+          </View>
+
+          <View style={styles.content}>
+            {children}
+          </View>
+        </Animated.View>
       </Animated.View>
     </Modal>
   );
 };
 
 const styles = StyleSheet.create({
+  fullScreen: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
   overlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
   },
-  overlayTouch: {
-    flex: 1,
-  },
   container: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
     borderTopLeftRadius: borderRadius.xl,
     borderTopRightRadius: borderRadius.xl,
   },
@@ -174,10 +166,9 @@ const styles = StyleSheet.create({
     height: 4,
     borderRadius: 2,
   },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
+  content: {
     paddingBottom: spacing.xl,
   },
 });
+
+

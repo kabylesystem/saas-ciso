@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Animated,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { spacing, borderRadius } from '../theme/spacing';
@@ -21,6 +22,49 @@ interface RebookModalProps {
 const weekOptions = [1, 2, 3, 4, 6, 8];
 const timeSlots = ['10:00', '11:00', '14:00', '15:00', '16:00', '17:00'];
 
+const AnimatedOption: React.FC<{
+  onPress: () => void;
+  isSelected: boolean;
+  selectedColor: string;
+  defaultColor: string;
+  children: React.ReactNode;
+  style?: any;
+}> = ({ onPress, isSelected, selectedColor, defaultColor, children, style }) => {
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    Animated.spring(scale, { toValue: 0.92, useNativeDriver: true, tension: 200, friction: 10 }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scale, { toValue: 1, useNativeDriver: true, tension: 200, friction: 10 }).start();
+  };
+
+  const handlePress = () => {
+    Animated.sequence([
+      Animated.timing(scale, { toValue: 0.9, duration: 50, useNativeDriver: true }),
+      Animated.spring(scale, { toValue: 1, useNativeDriver: true, tension: 300, friction: 10 }),
+    ]).start();
+    onPress();
+  };
+
+  return (
+    <TouchableWithoutFeedback onPressIn={handlePressIn} onPressOut={handlePressOut} onPress={handlePress}>
+      <Animated.View 
+        style={[
+          style, 
+          { 
+            backgroundColor: isSelected ? selectedColor : defaultColor,
+            transform: [{ scale }] 
+          }
+        ]}
+      >
+        {children}
+      </Animated.View>
+    </TouchableWithoutFeedback>
+  );
+};
+
 export const RebookModal: React.FC<RebookModalProps> = ({
   visible,
   onClose,
@@ -30,6 +74,7 @@ export const RebookModal: React.FC<RebookModalProps> = ({
   const { colors } = useTheme();
   const [selectedWeeks, setSelectedWeeks] = useState(3);
   const [selectedTime, setSelectedTime] = useState('14:00');
+  const confirmScale = useRef(new Animated.Value(1)).current;
 
   const getFutureDate = (weeks: number) => {
     const date = new Date();
@@ -40,6 +85,23 @@ export const RebookModal: React.FC<RebookModalProps> = ({
       month: 'long',
     };
     return date.toLocaleDateString('fr-FR', options);
+  };
+
+  const handleConfirmPressIn = () => {
+    Animated.spring(confirmScale, { toValue: 0.95, useNativeDriver: true, tension: 200, friction: 10 }).start();
+  };
+
+  const handleConfirmPressOut = () => {
+    Animated.spring(confirmScale, { toValue: 1, useNativeDriver: true, tension: 200, friction: 10 }).start();
+  };
+
+  const handleConfirm = () => {
+    Animated.sequence([
+      Animated.timing(confirmScale, { toValue: 0.9, duration: 50, useNativeDriver: true }),
+      Animated.spring(confirmScale, { toValue: 1, useNativeDriver: true, tension: 300, friction: 10 }),
+    ]).start();
+    onConfirm(selectedWeeks);
+    onClose();
   };
 
   if (!appointment) return null;
@@ -63,16 +125,13 @@ export const RebookModal: React.FC<RebookModalProps> = ({
         </Text>
         <View style={styles.weeksGrid}>
           {weekOptions.map((weeks) => (
-            <TouchableOpacity
+            <AnimatedOption
               key={weeks}
-              style={[
-                styles.weekOption,
-                {
-                  backgroundColor: selectedWeeks === weeks ? colors.buttonPrimary : colors.buttonSecondary,
-                },
-              ]}
               onPress={() => setSelectedWeeks(weeks)}
-              activeOpacity={0.7}
+              isSelected={selectedWeeks === weeks}
+              selectedColor={colors.buttonPrimary}
+              defaultColor={colors.buttonSecondary}
+              style={styles.weekOption}
             >
               <Text
                 style={[
@@ -90,7 +149,7 @@ export const RebookModal: React.FC<RebookModalProps> = ({
               >
                 sem
               </Text>
-            </TouchableOpacity>
+            </AnimatedOption>
           ))}
         </View>
 
@@ -100,16 +159,13 @@ export const RebookModal: React.FC<RebookModalProps> = ({
         </Text>
         <View style={styles.timesGrid}>
           {timeSlots.map((time) => (
-            <TouchableOpacity
+            <AnimatedOption
               key={time}
-              style={[
-                styles.timeOption,
-                {
-                  backgroundColor: selectedTime === time ? colors.buttonPrimary : colors.buttonSecondary,
-                },
-              ]}
               onPress={() => setSelectedTime(time)}
-              activeOpacity={0.7}
+              isSelected={selectedTime === time}
+              selectedColor={colors.buttonPrimary}
+              defaultColor={colors.buttonSecondary}
+              style={styles.timeOption}
             >
               <Text
                 style={[
@@ -119,7 +175,7 @@ export const RebookModal: React.FC<RebookModalProps> = ({
               >
                 {time}
               </Text>
-            </TouchableOpacity>
+            </AnimatedOption>
           ))}
         </View>
 
@@ -137,18 +193,22 @@ export const RebookModal: React.FC<RebookModalProps> = ({
         </View>
 
         {/* Confirm */}
-        <TouchableOpacity
-          style={[styles.confirmBtn, { backgroundColor: colors.buttonPrimary }]}
-          onPress={() => {
-            onConfirm(selectedWeeks);
-            onClose();
-          }}
-          activeOpacity={0.8}
+        <TouchableWithoutFeedback
+          onPressIn={handleConfirmPressIn}
+          onPressOut={handleConfirmPressOut}
+          onPress={handleConfirm}
         >
-          <Text style={[styles.confirmText, { color: colors.buttonPrimaryText }]}>
-            Confirmer
-          </Text>
-        </TouchableOpacity>
+          <Animated.View 
+            style={[
+              styles.confirmBtn, 
+              { backgroundColor: colors.buttonPrimary, transform: [{ scale: confirmScale }] }
+            ]}
+          >
+            <Text style={[styles.confirmText, { color: colors.buttonPrimaryText }]}>
+              Confirmer
+            </Text>
+          </Animated.View>
+        </TouchableWithoutFeedback>
       </View>
     </SwipeableModal>
   );
@@ -238,7 +298,5 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
 });
-
-
 
 

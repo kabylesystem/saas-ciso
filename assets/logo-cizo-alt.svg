@@ -1,0 +1,39 @@
+<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <!-- Logo Cizo Alt - Minimal abstract mark -->
+  <!-- Inspired by: flow, scheduling, precision cutting -->
+  
+  <!-- Abstract C shape with dynamic cut -->
+  <path 
+    d="M 44 18 
+       C 52 22, 56 28, 56 36 
+       C 56 48, 46 56, 32 56 
+       C 18 56, 8 46, 8 32 
+       C 8 18, 18 8, 32 8 
+       C 38 8, 43 10, 47 14"
+    fill="none" 
+    stroke="currentColor" 
+    stroke-width="3" 
+    stroke-linecap="round"
+  />
+  
+  <!-- Inner accent - diagonal precision line -->
+  <line 
+    x1="26" 
+    y1="38" 
+    x2="38" 
+    y2="26" 
+    stroke="currentColor" 
+    stroke-width="3" 
+    stroke-linecap="round"
+  />
+  
+  <!-- Small accent dot -->
+  <circle 
+    cx="42" 
+    cy="22" 
+    r="3" 
+    fill="currentColor"
+  />
+</svg>
+
+
